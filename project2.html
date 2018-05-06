@@ -1,0 +1,324 @@
+<html>
+<head>
+	<meta http-equiv="Content-Type" content="text/html;charset=utf-8" >
+
+<script type="text/javascript" src="Common/webgl-utils.js"></script>
+<script type="text/javascript" src="Common/initShaders.js"></script>
+<script type="text/javascript" src="Common/MV.js"></script>
+<script type="text/javascript" src="build/three.js"></script>
+<script type="text/javascript" src="build/three.min.js"></script>
+<script type="text/javascript" src="OBJLoader.js"></script>
+<script type="text/javascript" src="project2.js"></script>
+
+<script id="table-vertex-shader" type="x-shader/x-vertex">
+    attribute vec4 myPosition;
+    attribute vec2 textureCoordinate;
+    attribute vec3 nv;
+
+    uniform mat4 M, M_inversetranspose, P_persp;
+
+    varying vec2 fTextureCoordinate;
+
+    uniform float transX;
+    uniform float transY;
+    uniform float transZ;
+
+    uniform vec3 ka, kd, ks, ka2, kd2, ks2;
+    uniform float alpha, alpha2;
+    uniform vec3 p0, p0_2;
+    uniform vec3 Ia, Id, Is, Ia2, Id2, Is2;
+    varying vec3 R;
+    varying vec3 R2;
+    varying vec3 R3;
+
+
+    void main() {
+        gl_PointSize = 1.0;
+
+        mat4 M_scaleX, M_scaleY, M_scaleZ; // M_transX, M_transY, M_transZ;
+
+    M_scaleX = mat4(50.0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
+    M_scaleY = mat4(1, 0, 0, 0, 0, 50.0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
+    M_scaleZ = mat4(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1.0, 0, 0, 0, 0, 1);
+
+        vec4 myPositionTransformed = M * myPosition;
+
+        vec4 nv4 = vec4(nv.x, nv.y, nv.z, 1.0);
+        vec4 nv4transformed = M_inversetranspose * nv4;
+        vec3 nvtransformed = normalize(nv4transformed.xyz);
+
+        //Light one
+        float distance = length(p0 - myPositionTransformed.xyz);
+        float a = .00009;
+        float b = .000;
+        float c = .000;
+        float scalefactor = a * distance * distance + b * distance + c;
+        vec3 Ia_pp0 = Ia / scalefactor;
+        vec3 Id_pp0 = Id / scalefactor;
+        vec3 Is_pp0 = Is / scalefactor;
+
+        vec3 Ra, Rd, Rs;
+        // ambient reflection
+        Ra.r = ka.r * Ia_pp0.r;
+        Ra.g = ka.g * Ia_pp0.g;
+        Ra.b = ka.b * Ia_pp0.b;
+
+        // diffuse reflection
+        vec3 i = normalize(p0 - myPositionTransformed.xyz);
+        float costheta = dot(i, nvtransformed);
+        Rd.r = kd.r * Id_pp0.r * max(costheta, 0.0);
+        Rd.g = kd.g * Id_pp0.g * max(costheta, 0.0);
+        Rd.b = kd.b * Id_pp0.b * max(costheta, 0.0);
+
+        // specular reflection
+        vec3 r = 2.0 * costheta * nvtransformed - i;
+        vec3 view = normalize(vec3(.0,.0,.0) - myPositionTransformed.xyz);
+        float cosphi = dot(r,view);
+        float shine = pow(max(cosphi, 0.0), alpha);
+        float account;
+        if(costheta > .0) {
+          account = 1.0;
+        } else {
+          account = .0;
+        }
+
+          Rs.r = ks.r * Is_pp0.r * shine * account;
+          Rs.g = ks.g * Is_pp0.g * shine * account;
+          Rs.b = ks.b * Is_pp0.b * shine * account;
+
+    //Light two
+       float distance2 = length(p0_2 - myPositionTransformed.xyz);
+       float a2 = .00009;
+       float b2 = .000;
+       float c2 = .000;
+       float scalefactor2 = a2 * distance2 * distance2 + b2 * distance2 + c2;
+       vec3 Ia_pp0_2 = Ia2 / scalefactor2;
+       vec3 Id_pp0_2 = Id2 / scalefactor2;
+       vec3 Is_pp0_2 = Is2 / scalefactor2;
+
+       vec3 Ra2, Rd2, Rs2;
+       // ambient reflection
+       Ra2.r = ka2.r * Ia_pp0_2.r;
+       Ra2.g = ka2.g * Ia_pp0_2.g;
+       Ra2.b = ka2.b * Ia_pp0_2.b;
+
+       // diffuse reflection
+       vec3 i2 = normalize(p0_2 - myPositionTransformed.xyz);
+       float costheta2 = dot(i2, nvtransformed);
+       Rd2.r = kd2.r * Id_pp0_2.r * max(costheta2, 0.0);
+       Rd2.g = kd2.g * Id_pp0_2.g * max(costheta2, 0.0);
+       Rd2.b = kd2.b * Id_pp0_2.b * max(costheta2, 0.0);
+
+       // specular reflection
+       vec3 r2 = 2.0 * costheta2 * nvtransformed - i2;
+       vec3 view2 = normalize(vec3(.0,.0,.0) - myPositionTransformed.xyz);
+       float cosphi2 = dot(r2,view2);
+       float shine2 = pow(max(cosphi2, 0.0), alpha2);
+       float account2;
+       if(costheta2 > .0) {
+         account2 = 1.0;
+       } else {
+         account2 = .0;
+       }
+         Rs2.r = ks2.r * Is_pp0_2.r * shine2 * account2;
+         Rs2.g = ks2.g * Is_pp0_2.g * shine2 * account2;
+         Rs2.b = ks2.b * Is_pp0_2.b * shine2 * account2;
+
+
+
+          R3 = clamp(Ra + Rd + Rs + Ra2 + Rd2 + Rs2, .0, 1.0);
+
+        fTextureCoordinate = textureCoordinate;
+        gl_Position = P_persp * M_scaleX * M_scaleY * M_scaleZ * myPositionTransformed;
+
+    }
+</script>
+
+<script id="chair-vertex-shader" type="x-shader/x-vertex">
+    attribute vec4 myPosition;
+    attribute vec2 textureCoordinate;
+    attribute vec3 nv;
+    uniform float transX;
+    uniform float transY;
+    uniform float transZ;
+
+    uniform mat4 M, M_inversetranspose, P_persp;
+
+    varying vec2 fTextureCoordinate;
+
+    uniform vec3 ka, kd, ks, ka2, kd2, ks2;
+    uniform float alpha, alpha2;
+    uniform vec3 p0, p0_2;
+    uniform vec3 Ia, Id, Is, Ia2, Id2, Is2;
+    varying vec3 R;
+    varying vec3 R2;
+    varying vec3 R3;
+
+
+    void main() {
+        gl_PointSize = 1.0;
+
+        mat4 M_scaleX, M_scaleY, M_scaleZ, M_transX, M_transY, M_transZ;
+
+    M_scaleX = mat4(50.0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
+    M_scaleY = mat4(1, 0, 0, 0, 0, 50.0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
+    M_scaleZ = mat4(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1.0, 0, 0, 0, 0, 1);
+
+
+     M_transX = mat4(1, 0, 0, 0,
+                     0, 1, 0, 0,
+                     0, 0, 1, 0,
+                -.1+transX, 0, 0, 1);
+
+    M_transY = mat4(1, 0, 0, 0,
+                    0, 1, 0, 0,
+                    0, 0, 1, 0,
+                    0, .1+transY, 0, 1);
+
+     M_transZ = mat4(1, 0, 0, 0,
+                     0, 1, 0, 0,
+                     0, 0, 1, 0,
+                     0, 0, .1+transZ, 1);
+
+
+        vec4 myPositionTransformed = M * myPosition;
+
+        vec4 nv4 = vec4(nv.x, nv.y, nv.z, 1.0);
+        vec4 nv4transformed = M_inversetranspose * nv4;
+        vec3 nvtransformed = normalize(nv4transformed.xyz);
+
+//Light one
+        float distance = length(p0 - myPositionTransformed.xyz);
+        float a = .00009;
+        float b = .000;
+        float c = .000;
+        float scalefactor = a * distance * distance + b * distance + c;
+        vec3 Ia_pp0 = Ia / scalefactor;
+        vec3 Id_pp0 = Id / scalefactor;
+        vec3 Is_pp0 = Is / scalefactor;
+
+        vec3 Ra, Rd, Rs;
+        // ambient reflection
+        Ra.r = ka.r * Ia_pp0.r;
+        Ra.g = ka.g * Ia_pp0.g;
+        Ra.b = ka.b * Ia_pp0.b;
+
+        // diffuse reflection
+        vec3 i = normalize(p0 - myPositionTransformed.xyz);
+        float costheta = dot(i, nvtransformed);
+        Rd.r = kd.r * Id_pp0.r * max(costheta, 0.0);
+        Rd.g = kd.g * Id_pp0.g * max(costheta, 0.0);
+        Rd.b = kd.b * Id_pp0.b * max(costheta, 0.0);
+
+        // specular reflection
+        vec3 r = 2.0 * costheta * nvtransformed - i;
+        vec3 view = normalize(vec3(.0,.0,.0) - myPositionTransformed.xyz);
+        float cosphi = dot(r,view);
+        float shine = pow(max(cosphi, 0.0), alpha);
+        float account;
+        if(costheta > .0) {
+          account = 1.0;
+        } else {
+          account = .0;
+        }
+
+          Rs.r = ks.r * Is_pp0.r * shine * account;
+          Rs.g = ks.g * Is_pp0.g * shine * account;
+          Rs.b = ks.b * Is_pp0.b * shine * account;
+
+        //Light two
+       float distance2 = length(p0_2 - myPositionTransformed.xyz);
+       float a2 = .00009;
+       float b2 = .000;
+       float c2 = .000;
+       float scalefactor2 = a2 * distance2 * distance2 + b2 * distance2 + c2;
+       vec3 Ia_pp0_2 = Ia2 / scalefactor2;
+       vec3 Id_pp0_2 = Id2 / scalefactor2;
+       vec3 Is_pp0_2 = Is2 / scalefactor2;
+
+       vec3 Ra2, Rd2, Rs2;
+       // ambient reflection
+       Ra2.r = ka2.r * Ia_pp0_2.r;
+       Ra2.g = ka2.g * Ia_pp0_2.g;
+       Ra2.b = ka2.b * Ia_pp0_2.b;
+
+       // diffuse reflection
+       vec3 i2 = normalize(p0_2 - myPositionTransformed.xyz);
+       float costheta2 = dot(i2, nvtransformed);
+       Rd2.r = kd2.r * Id_pp0_2.r * max(costheta2, 0.0);
+       Rd2.g = kd2.g * Id_pp0_2.g * max(costheta2, 0.0);
+       Rd2.b = kd2.b * Id_pp0_2.b * max(costheta2, 0.0);
+
+       // specular reflection
+       vec3 r2 = 2.0 * costheta2 * nvtransformed - i2;
+       vec3 view2 = normalize(vec3(.0,.0,.0) - myPositionTransformed.xyz);
+       float cosphi2 = dot(r2,view2);
+       float shine2 = pow(max(cosphi2, 0.0), alpha2);
+       float account2;
+       if(costheta2 > .0) {
+         account2 = 1.0;
+       } else {
+         account2 = .0;
+       }
+         Rs2.r = ks2.r * Is_pp0_2.r * shine2 * account2;
+         Rs2.g = ks2.g * Is_pp0_2.g * shine2 * account2;
+         Rs2.b = ks2.b * Is_pp0_2.b * shine2 * account2;
+
+
+          R3 = clamp(Ra + Rd + Rs + Ra2 + Rd2 + Rs2, .0, 1.0);
+
+        fTextureCoordinate = textureCoordinate;
+        gl_Position =  M_transX * M_transY * M_transZ * P_persp  * M_scaleX *  M_scaleY * M_scaleZ * myPositionTransformed;
+
+    }
+</script>
+
+
+
+<script id="table-fragment-shader" type="x-shader/x-fragment">
+    precision mediump float;
+    uniform sampler2D texMap0;
+    varying vec2 fTextureCoordinate;
+    varying vec3 R3;
+
+    void main() {
+        vec4 color0 = texture2D(texMap0, fTextureCoordinate);
+        gl_FragColor.r = color0.r + R3.r;
+        gl_FragColor.g = color0.g + R3.g;
+        gl_FragColor.b = color0.b + R3.b;
+        gl_FragColor.a = color0.a;
+
+    }
+
+</script>
+
+<script id="chair-fragment-shader" type="x-shader/x-fragment">
+    precision mediump float;
+    uniform sampler2D texMap0;
+    varying vec2 fTextureCoordinate;
+    varying vec3 R3;
+
+    void main() {
+        vec4 color0 = texture2D(texMap0, fTextureCoordinate);
+        gl_FragColor.r = color0.r + R3.r;
+        gl_FragColor.g = color0.g + R3.g;
+        gl_FragColor.b = color0.b + R3.b;
+        gl_FragColor.a = color0.a;
+
+    }
+
+</script>
+
+	</head>
+
+<body onload = "init()" onkeydown="transform(event)">
+<canvas id="gl-canvas" width="512" height="512">
+    <img id="Wood_Cherry_Original" hidden src="Wood_Cherry_Original.jpg"></img>
+    <img id="Wood" hidden src="wood.jpg"></img>
+Oops ... your browser doesn't support the HTML5 canvas element
+</canvas>
+
+<br/>
+
+</body>
+</html>
