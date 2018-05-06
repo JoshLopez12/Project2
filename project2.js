@@ -2,7 +2,7 @@
 var gl;
 var tableShaderProgram;
 var chairShaderProgram;
-
+var desktopShaderProgram;
 
 var tableVertices = [];
 var tableIndexList = [];
@@ -14,10 +14,16 @@ var chairIndexList = [];
 var chairVertexNormals = [];
 var chairTextureCoordinates = [];
 
+var desktopVertices = [];
+var desktopIndexList = [];
+var desktopVertexNormals = [];
+var desktopTextureCoordinates = [];
+
 
 var chairFaces = 288;
 var callbackcount = 0;
 var tableFaces = 152;
+var desktopFaces = 706;
 
 var transX = 0;
 var transY = 0;
@@ -37,9 +43,43 @@ function init() {
 
     chairShaderProgram = initShaders(gl, "chair-vertex-shader", "chair-fragment-shader");
 
+    desktopShaderProgram = initShaders(gl, "desktop-vertex-shader", "desktop-fragment-shader");
 
     var objLoader = new THREE.OBJLoader();
     console.log("here");
+
+    objLoader.load("Desktop.obj", function(object) {
+        var len = object.children.length;
+
+
+        for(var i=0; i<len; i++){
+
+            var geometry = object.children[i].geometry;
+
+            var vertices_array = geometry.attributes.position.array;
+
+            var l = vertices_array.length/3;
+
+            for(var j=0; j<l; j++){
+                desktopVertices.push( vec4(vertices_array[3*j],vertices_array[3*j+1],vertices_array[3*j+2],1));
+
+
+                desktopIndexList.push( 3*j );
+                desktopIndexList.push( 3*j+1 );
+                desktopIndexList.push( 3*j+2 );
+
+                desktopVertexNormals.push( vec2( geometry.attributes.normal.array[3*j],
+                                    geometry.attributes.normal.array[3*j+1],
+                                    geometry.attributes.normal.array[3*j+2]) );
+                desktopTextureCoordinates.push( vec2( geometry.attributes.uv.array[2*j],
+                                    geometry.attributes.uv.array[2*j+1] ));
+
+            }
+
+        }
+        callbackcount++;
+    } );
+
     objLoader.load( "WoodenTable.obj ", function(object){
 
         var len = object.children.length;
@@ -72,9 +112,9 @@ function init() {
         }
 
         callbackcount++;
-} );
+    } );
 
-objLoader.load( "SimpleChair.obj ", function(object){
+    objLoader.load( "SimpleChair.obj ", function(object){
 
         var len = object.children.length;
 
@@ -105,21 +145,24 @@ objLoader.load( "SimpleChair.obj ", function(object){
 
         }
         callbackcount++;
-} );
+    } );
 
-objLoader.load( "SimpleChair.obj ", function(object){
+    objLoader.load( "SimpleChair.obj ", function(object){
 
         var len = object.children.length;
 
         callbackcount++;
-} );
+    } );
+
+
+
 
 continueExecution();
     console.log("here1");
 }
 
 function continueExecution() {
-    if (callbackcount < 3 ) {
+    if (callbackcount < 4 ) {
         setTimeout( continueExecution, 1000 );
         return;
     }
@@ -131,6 +174,9 @@ function continueExecution() {
 function drawObject() {
 
     gl.clear( gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT );
+
+    gl.useProgram (desktopShaderProgram );
+    setupDesktopBuffer();
 
     gl.useProgram( tableShaderProgram );
     setupTableBuffer();
@@ -202,7 +248,7 @@ function setupTableBuffer() {
     gl.uniformMatrix4fv(modelviewMatrixInverseTransposeLocation, false, modelviewMatrixInverseTranspose);
 
 
-// projection matrix
+    // projection matrix
     var left = 50.0;
     var right = -10.0;
     var top_ = 60.0;
@@ -212,7 +258,7 @@ function setupTableBuffer() {
 
 
 
-// perspective projection matrix
+    // perspective projection matrix
     var perspectiveProjectionMatrix =
     [2.0*near/(right-left), .0, .0, .0,
      .0, 2.0*near/(top_-bottom), .0, .0,
@@ -329,7 +375,7 @@ function setupChairBuffer() {
     gl.uniformMatrix4fv(modelviewMatrixInverseTransposeLocation, false, modelviewMatrixInverseTranspose);
 
 
-// projection matrix
+    // projection matrix
     var left = -40.0;
     var right = 50.0;
     var top_ = 60.0;
@@ -339,7 +385,7 @@ function setupChairBuffer() {
 
 
 
-// perspective projection matrix
+    // perspective projection matrix
     var perspectiveProjectionMatrix =
     [2.0*near/(right-left), .0, .0, .0,
      .0, 2.0*near/(top_-bottom), .0, .0,
@@ -395,6 +441,132 @@ function setupChairBuffer() {
 
 }
 
+function setupDesktopBuffer() {
+    gl.useProgram(desktopShaderProgram);
+    var indexBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,indexBuffer);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(desktopIndexList), gl.STATIC_DRAW);
+
+    var verticesBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, verticesBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, flatten(desktopVertices), gl.STATIC_DRAW);
+
+    var myPosition = gl.getAttribLocation(desktopShaderProgram,"myPosition");
+    gl.vertexAttribPointer( myPosition, 4, gl.FLOAT, false, 0, 0 );
+    gl.enableVertexAttribArray( myPosition );
+
+
+    var normalsbuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, normalsbuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, flatten(desktopVertexNormals), gl.STATIC_DRAW);
+
+    var vertexNormalPointer = gl.getAttribLocation(desktopShaderProgram, "nv");
+    gl.vertexAttribPointer(vertexNormalPointer, 3, gl.FLOAT, false, 0, 0);
+    gl.enableVertexAttribArray(vertexNormalPointer);
+
+    var tBuffer = gl.createBuffer();
+    gl.bindBuffer( gl.ARRAY_BUFFER, tBuffer );
+    gl.bufferData( gl.ARRAY_BUFFER, flatten(desktopTextureCoordinates), gl.STATIC_DRAW );
+
+    var textureCoordinate = gl.getAttribLocation(desktopShaderProgram, "textureCoordinate");
+    gl.vertexAttribPointer(textureCoordinate, 2, gl.FLOAT, false, 0, 0);
+    gl.enableVertexAttribArray(textureCoordinate);
+
+    var myImage = document.getElementById("black");
+    configureTexture(myImage);
+
+
+    var e = vec3(40.0, 60.0, 50.0);
+    var a = vec3(0.0, 0.0, 0.0);
+    var vup = vec3(0.0, 1.0, 0.0);
+    var n = normalize( vec3(e[0]-a[0], e[1]-a[1], e[2]-a[2]) );
+    var u = normalize( cross(vup, n) );
+    var v = normalize( cross(n, u) );
+    var modelviewMatrix = [u[0], v[0], n[0], 0.0,
+                           u[1], v[1], n[1], 0.0,
+                           u[2], v[2], n[2], 0.0,
+                           -u[0]*e[0]-u[1]*e[1]-u[2]*e[2],
+                           -v[0]*e[0]-v[1]*e[1]-v[2]*e[2],
+                           -n[0]*e[0]-n[1]*e[1]-n[2]*e[2], 1.0];
+
+    var modelviewMatrixInverseTranspose = [u[0], v[0], n[0], e[0],
+                                           u[1], v[1], n[1], e[1],
+                                           u[2], v[2], n[2], e[2],
+                                            0.0,  0.0,  0.0,  1.0];
+
+    var modelviewMatrixLocation = gl.getUniformLocation(desktopShaderProgram, "M");
+    gl.uniformMatrix4fv(modelviewMatrixLocation, false, modelviewMatrix);
+
+    var modelviewMatrixInverseTransposeLocation = gl.getUniformLocation(desktopShaderProgram, "M_inversetranspose");
+    gl.uniformMatrix4fv(modelviewMatrixInverseTransposeLocation, false, modelviewMatrixInverseTranspose);
+
+
+    // projection matrix
+    var left = 50.0;
+    var right = -10.0;
+    var top_ = 60.0;
+    var bottom = -50.0;
+    var near = 40.0;
+    var far = 100.0;
+
+
+
+    // perspective projection matrix
+    var perspectiveProjectionMatrix =
+    [2.0*near/(right-left), .0, .0, .0,
+     .0, 2.0*near/(top_-bottom), .0, .0,
+     (right+left)/(right-left), (top_+bottom)/(top_-bottom), -(far+near)/(far-near), -1.0,
+     .0, .0, -2.0*far*near/(far-near), .0];
+
+
+    var perspectiveProjectionMatrixLocation = gl.getUniformLocation(desktopShaderProgram, "P_persp");
+     gl.uniformMatrix4fv(perspectiveProjectionMatrixLocation, false, perspectiveProjectionMatrix);
+
+    //Light One
+     var kaloc = gl.getUniformLocation(desktopShaderProgram, "ka");
+     var kdloc = gl.getUniformLocation(desktopShaderProgram, "kd");
+     var ksloc = gl.getUniformLocation(desktopShaderProgram, "ks");
+     gl.uniform3f( kaloc, 0.5, 0.5, 0.5);
+     gl.uniform3f( kdloc, 0.5, 0.5, 0.5);
+     gl.uniform3f( ksloc, 1.0, 1.0, 1.0);
+     var alphaloc = gl.getUniformLocation(desktopShaderProgram, "alpha");
+     gl.uniform1f(alphaloc, 4.0);
+
+     var p0loc = gl.getUniformLocation(desktopShaderProgram, "p0");
+     gl.uniform3f(p0loc, -40.0, 50.0, -15.0);
+
+     var Ialoc = gl.getUniformLocation(desktopShaderProgram, "Ia");
+     var Idloc = gl.getUniformLocation(desktopShaderProgram, "Id");
+     var Isloc = gl.getUniformLocation(desktopShaderProgram, "Is");
+     gl.uniform3f( Ialoc, 0.1, 0.1, 0.1);
+     gl.uniform3f( Idloc, 0.8, 0.8, 0.5);
+     gl.uniform3f( Isloc, 0.8, 0.8, 0.8);
+
+     //Light Two
+     var kaloc2 = gl.getUniformLocation(desktopShaderProgram, "ka2");
+     var kdloc2 = gl.getUniformLocation(desktopShaderProgram, "kd2");
+     var ksloc2 = gl.getUniformLocation(desktopShaderProgram, "ks2");
+     gl.uniform3f( kaloc2, 0.5, 0.5, 0.5);
+     gl.uniform3f( kdloc2, 0.5, 0.5, 0.5);
+     gl.uniform3f( ksloc2, 1.0, 1.0, 1.0);
+     var alphaloc2 = gl.getUniformLocation(desktopShaderProgram, "alpha2");
+     gl.uniform1f(alphaloc2, 4.0);
+
+     var p0loc2 = gl.getUniformLocation(desktopShaderProgram, "p0_2");
+     gl.uniform3f(p0loc2, 50.0, 30.0, -5.0);
+
+     var Ialoc2 = gl.getUniformLocation(desktopShaderProgram, "Ia2");
+     var Idloc2 = gl.getUniformLocation(desktopShaderProgram, "Id2");
+     var Isloc2 = gl.getUniformLocation(desktopShaderProgram, "Is2");
+     gl.uniform3f( Ialoc2, 0.1, 0.1, 0.1);
+     gl.uniform3f( Idloc2, 0.8, 0.8, 0.5);
+     gl.uniform3f( Isloc2, 0.8, 0.8, 0.8);
+
+
+    gl.uniform1i(gl.getUniformLocation(desktopShaderProgram,"texMap0"), 0);
+
+    gl.drawElements( gl.TRIANGLES, desktopFaces , gl.UNSIGNED_SHORT, 0 );
+}
 
 function transform(event){
     var theKeyCode = event.keyCode;
