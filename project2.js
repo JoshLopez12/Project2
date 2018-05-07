@@ -502,12 +502,12 @@ function setupDesktopBuffer() {
 
 
     // projection matrix
-    var left = 50.0;
-    var right = -10.0;
-    var top_ = 60.0;
-    var bottom = -50.0;
-    var near = 40.0;
-    var far = 100.0;
+    var left = 100.0;
+    var right = -20.0;
+    var top_ = 120.0;
+    var bottom = -5.0;
+    var near = 80.0;
+    var far = 200.0;
 
 
 
